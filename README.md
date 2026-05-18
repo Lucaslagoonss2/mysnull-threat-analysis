@@ -18,6 +18,7 @@ Advanced malware traffic analysis and IOC extraction framework focused on SOC in
 
 - Wireshark
 - Python
+- Rich
 - Kali Linux
 
 ---
