@@ -1,6 +1,6 @@
-# SOC Threat Detection Lab
+# MysNull Threat Analysis
 
-A hands-on Blue Team project focused on malware traffic analysis, IOC investigation, and network threat detection using Wireshark and Python
+Advanced malware traffic analysis and IOC extraction framework focused on SOC investigation workflows, threat detection, and network forensics.
 
 ---
 
