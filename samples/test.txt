@@ -1,0 +1,8 @@
+Suspicious IP:
+192.168.0.1
+
+Malware URL:
+https://evil-domain.com/payload
+
+C2:
+45.33.32.156
