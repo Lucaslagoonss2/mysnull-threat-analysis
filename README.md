@@ -1,103 +1,54 @@
 # MysNull Threat Analysis
-Blue Team portfolio project focused on SOC-style malware traffic investigation and IOC extraction.  
-This repository is intentionally practical and learning-oriented, with clear evidence artifacts, reproducible scripts, and analyst-friendly output.
+Practical junior Blue Team SOC portfolio project focused on malware-traffic investigation and IOC extraction.
+This repo highlights repeatable analyst workflow, evidence artifacts, and clean Python tooling with a light cyberpunk terminal style.
 
-## Project overview
-`mysnull-threat-analysis` documents an end-to-end mini investigation workflow:
-- review suspicious traffic evidence
-- identify and document indicators of compromise (IOCs)
-- produce structured outputs for triage and reporting
+## Recruiter snapshot
+- Scope: one realistic investigation case (not an enterprise platform)
+- Focus: DNS/HTTP/TCP triage and IOC extraction
+- Output: reproducible `.txt` / `.json` artifacts for reporting and handoff
 
-Current scope is junior-friendly and realistic: one investigation case, reproducible extraction tooling, and clear room for iterative improvement.
-
-## Features
-- IOC extraction from text/log inputs (IPv4, domains, URLs)
-- Rich-powered cyberpunk SOC terminal UI for extraction runs
-- JSON and TXT artifact export
-- Investigation evidence folders (reports, screenshots, IOCs)
-- Portfolio-friendly project organization
-
-## Investigation workflow
-1. Collect or review suspicious traffic artifacts (PCAP/snapshots/report notes)
-2. Analyze traffic behavior (DNS, HTTP, TCP patterns)
-3. Extract candidate indicators (IPs, domains, URLs)
-4. Validate and normalize IOCs
-5. Export structured IOC artifacts
-6. Document findings for SOC-style reporting
-
-## IOC extraction capabilities
-The IOC extractor (`extractors/ioc_extractor.py`) currently supports:
-- regex-based extraction of:
-  - IPv4 addresses
-  - domains
-  - HTTP/HTTPS URLs
-- URL/domain normalization
-- sorted/structured output via `IOCResults`
-- output formats:
-  - `.txt` report
-  - `.json` structured artifact
-- terminal UX features:
-  - animated startup (optional)
-  - summary panels
-  - export/log visibility
-- run logging to file for troubleshooting
+## What this project does
+- Extracts IPv4s, domains, and URLs from text-based evidence
+- Normalizes and structures IOC results for analyst use
+- Exports findings to `txt` and `json`
+- Provides Rich-powered SOC-style CLI output
 
 ## Quickstart
-```bash
-# 1) (optional) create virtual environment
-python -m venv .venv
-
-# 2) activate it (PowerShell)
-.\.venv\Scripts\Activate.ps1
-
-# 3) install dependency used by the extractor UI
-pip install rich
-
-# 4) run quick demo script
-python main.py
-```
-
-## Installation
 ### Requirements
-- Python 3.10+ (recommended)
+- Python 3.10+
 - `pip`
 
 ### Install
 ```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install rich
+```
+
+### Run demo
+```bash
+python main.py
 ```
 
 ## Example commands
 ```bash
-# Run extractor against sample data (fast mode, no animation)
+# Basic extraction (fast mode)
 python extractors/ioc_extractor.py -i samples/test.txt --no-animation
 
-# Export both formats into a target folder
+# Export both formats to a folder
 python extractors/ioc_extractor.py -i samples/test.txt -f txt json -o outputs --basename xloader_iocs --no-animation
 
-# Enable verbose logging
+# Verbose run for troubleshooting
 python extractors/ioc_extractor.py -i samples/test.txt --verbose --no-animation
 ```
 
-## Sample output
-Example from `main.py`:
-```text
-IOC RESULTS
-
-IPs:
-['185.243.115.84']
-
-Domains:
-['evil-malware.com', 'hacker-control.net']
-
-URLs:
-['http://evil-malware.com']
-```
-
-Extractor exports artifacts such as:
-- `ioc_results.txt`
-- `ioc_results.json`
-- `ioc_extractor.log`
+## Investigation workflow
+1. Review suspicious evidence (traffic notes / packet-derived text)
+2. Triage behavior across DNS, HTTP, and TCP signals
+3. Extract candidate IOCs (IPs, domains, URLs)
+4. Normalize and organize results
+5. Export structured artifacts for reporting
+6. Document findings in investigation notes
 
 ## Screenshots
 ### Suspicious DNS Resolution
@@ -109,14 +60,7 @@ Extractor exports artifacts such as:
 ### HTTP Stream Analysis
 ![HTTP Stream](screenshots/follow_http_stream_analysis.png)
 
-## Skills demonstrated
-- IOC extraction and normalization
-- Malware traffic triage fundamentals (DNS/HTTP/TCP)
-- SOC-style investigation documentation
-- Python scripting for analyst workflows
-- Structured artifact generation for repeatability
-
-## Accurate project tree
+## Repository structure
 ```text
 mysnull-threat-analysis/
 ├── core/
@@ -153,12 +97,14 @@ mysnull-threat-analysis/
 └── README.md
 ```
 
+## Skills demonstrated
+- IOC extraction and normalization fundamentals
+- SOC-style malware traffic triage (DNS/HTTP/TCP)
+- Investigation documentation and evidence handling
+- Python scripting for repeatable analyst workflows
+
 ## Future roadmap
 - Add unit tests for IOC parsing edge cases
-- Add hash/email/path IOC types
-- Add pcap-to-text preprocessing helpers
-- Add markdown report generation templates
-- Add confidence/false-positive tuning notes
-
----
-Status: in progress, actively refactoring for cleaner modularity and stronger portfolio presentation.
+- Extend IOC support (hashes, emails, file paths)
+- Add preprocessing helpers for packet-derived text inputs
+- Add reporting templates for faster case writeups
