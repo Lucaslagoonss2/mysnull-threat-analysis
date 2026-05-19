@@ -1,3 +1,4 @@
+import sys
 from extractors.ioc_extractor import extract_iocs
 
 def normalize_results(results):
@@ -5,9 +6,8 @@ def normalize_results(results):
     if hasattr(results, "to_sorted_dict"):
         return results.to_sorted_dict()
     return results
-
-
-sample_text = """
+def run_demo() -> None:
+    sample_text = """
 Connection to malicious domain:
 
 http://evil-malware.com
@@ -19,17 +19,21 @@ Another domain:
 hacker-control.net
 """
 
+    results = extract_iocs(sample_text)
+    results_dict = normalize_results(results)
 
-results = extract_iocs(sample_text)
-results_dict = normalize_results(results)
+    print("\nIOC RESULTS\n")
+    print("IPs:")
+    print(results_dict["ips"])
+    print("\nDomains:")
+    print(results_dict["domains"])
+    print("\nURLs:")
+    print(results_dict["urls"])
 
-print("\nIOC RESULTS\n")
 
-print("IPs:")
-print(results_dict["ips"])
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        from mysnull_cli import main as cli_main
 
-print("\nDomains:")
-print(results_dict["domains"])
-
-print("\nURLs:")
-print(results_dict["urls"])
+        raise SystemExit(cli_main())
+    run_demo()

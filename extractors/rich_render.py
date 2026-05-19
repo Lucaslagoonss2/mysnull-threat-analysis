@@ -83,3 +83,18 @@ def render_error_panel(console: Any, Panel: Any, title: str, message: str) -> No
 def render_success(console: Any, message: str) -> None:
     """Display standardized success message."""
     console.print(f"[success]{message}[/success]")
+
+
+def render_normalization_notes(console: Any, box: Any, Panel: Any, notes: Sequence[str]) -> None:
+    """Display lightweight IOC normalization notes."""
+    if not notes:
+        return
+    body = "\n".join(f"[muted]•[/muted] {note}" for note in notes)
+    console.print(
+        Panel(
+            body,
+            title="[primary]Normalization Notes[/primary]",
+            border_style="accent",
+            box=box.ROUNDED,
+        )
+    )
