@@ -216,3 +216,27 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific runtime/output artifacts
+ioc_results.txt
+ioc_results.json
+ioc_extractor.log
+outputs/
+logs/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Preserve portfolio evidence
+!screenshots/
+!screenshots/**
+!reports/
+!reports/**
+!iocs/
+!iocs/**
+!pcap/
+!pcap/**
