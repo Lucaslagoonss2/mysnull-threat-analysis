@@ -6,7 +6,7 @@
 
 ![CI](https://github.com/Lucaslagoonss2/mysnull-threat-analysis/actions/workflows/ci.yml/badge.svg)
 
-I started this project because I wanted to actually work a case — not just read about how SOC analysts do it. So I grabbed a real malware PCAP, opened Wireshark, and started digging. The main investigation covers XLoader traffic from January 2025: I found suspicious DNS queries, encoded HTTP GET requests hitting `www.woca.group`, a JavaScript redirect behavior, and persistent TCP callbacks to `76.223.54.146`. From there I wrote up the findings, kept analyst notes, and built a Python tool to pull IPs, domains, URLs, and hashes out of that kind of evidence automatically. Everything ran in a lab environment on traffic I had permission to analyze.
+I started this project because I wanted to actually work a case — not just read about how SOC analysts do it. So I grabbed a public malware PCAP, opened Wireshark, and started digging (PCAP analyzed locally — not published in the repo for size and safety reasons). The main investigation covers XLoader traffic from January 2025: I found suspicious DNS queries, encoded HTTP GET requests hitting `www.woca.group`, a JavaScript redirect behavior, and persistent TCP callbacks to `76.223.54.146`. From there I wrote up the findings, kept analyst notes, and built a Python tool to pull IPs, domains, URLs, and hashes out of that kind of evidence automatically. Everything ran in a lab environment on traffic I had permission to analyze.
 
 ## Investigated Cases
 
