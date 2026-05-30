@@ -1,0 +1,42 @@
+XLoader PCAP Investigation Notes
+Date: 2025-01-14
+Source: Wireshark review — infected Windows host (lab VM)
+Case ref: XLDR-2025-01
+
+=== INITIAL TRIAGE ===
+Alert fired on suspicious outbound DNS from workstation WS-042.
+No user-reported browsing to .xyz domains prior to the session.
+Traffic window: ~14:22–14:31 UTC.
+
+=== DNS OBSERVATIONS ===
+Query: www.physicsbrain.xyz (A record, no cached response)
+~30s later: www.satoshichecker.xyz (A record)
+Both resolved to infrastructure outside expected corporate geo.
+
+=== HTTP ACTIVITY (port 80) ===
+Follow HTTP stream on frame seq ~1842:
+
+GET /pzee/?GA=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9... HTTP/1.1
+Host: www.woca.group
+Connection: keep-alive
+
+Response 200 — body contains JavaScript redirect to /lander?GA=...
+(See Wireshark HTTP stream screenshot — redirect via inline script tag.)
+Defanged URL from packet export: hxxps://www.woca.group/lander?GA=...
+Encoded GET params on /pzee/ — likely staging or C2 check-in.
+
+=== TCP CALLBACK ===
+After HTTP chain, sustained outbound TCP to 76.223.54.146:443.
+External IP does not match any known CDN or vendor endpoint.
+Multiple SYN retransmits before session established — possible filtering upstream.
+
+=== IOC SUMMARY (for blocking / enrichment) ===
+IP: 76.223.54.146
+Domains: www.physicsbrain.xyz, www.satoshichecker.xyz, www.woca.group
+Dropped stage-2 payload MD5: 44d88612fea8a8f36de82e1278abb02f
+Related loader SHA256: 3a7bd3e2360a3d29eea436fcfb7edb546711c1706220f8d133a571778688f435
+
+=== NEXT STEPS ===
+- Pull full HTTP stream export for /pzee/ and /lander paths
+- Check VT/Shodan on 76.223.54.146
+- Correlate with proxy logs if available

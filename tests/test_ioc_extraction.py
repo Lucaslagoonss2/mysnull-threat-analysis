@@ -1,4 +1,4 @@
-from extractors.ioc_extractor import extract_iocs
+from extractors.ioc_extractor import defang_iocs, extract_iocs
 
 
 def test_extracts_ip_addresses():
@@ -32,3 +32,30 @@ def test_iocresults_backward_compatible_access():
     assert "185.243.115.84" in results["ips"]
     assert "evil-malware.com" in results.get("domains", [])
     assert results.get("missing", ["fallback"]) == ["fallback"]
+
+
+def test_extracts_md5_hash():
+    text = "Dropped file MD5: 44d88612fea8a8f36de82e1278abb02f"
+    results = extract_iocs(text)
+
+    assert "44d88612fea8a8f36de82e1278abb02f" in results.hashes
+
+
+def test_extracts_sha256_hash():
+    text = (
+        "Sample SHA256: "
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    )
+    results = extract_iocs(text)
+
+    assert "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" in results.hashes
+
+
+def test_defang_output():
+    text = "Host 76.223.54.146 used https://www.evil.com/drop and www.evil.com"
+    results = extract_iocs(text)
+    defanged = defang_iocs(results)
+
+    assert "76[.]223[.]54[.]146" in defanged.ips
+    assert "www[.]evil[.]com" in defanged.domains
+    assert "https[://]www[.]evil[.]com/drop" in defanged.urls

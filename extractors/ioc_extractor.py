@@ -7,6 +7,8 @@ This script keeps the extraction workflow practical for SOC analysts while addin
 - Logging + robust error handling
 """
 
+# This tool is for defensive/educational use only. Do not use against unauthorized systems.
+
 from __future__ import annotations
 
 import argparse
@@ -54,7 +56,7 @@ try:
     from rich.theme import Theme
 except ImportError:
     RICH_AVAILABLE = False
-    # Criamos um fallback simples para evitar quebras de atributo durante o parse do script
+    # stub Rich classes so the script still loads without the package
     class FakeBox:
         DOUBLE_EDGE = None
         ROUNDED = None
@@ -95,7 +97,7 @@ def detect_terminal_profile() -> Dict[str, object]:
         token in encoding for token in ("utf-8", "utf8", "cp65001", "utf-16", "utf16")
     )
 
-    # Windows Terminal typically supports Unicode even when legacy code pages are present.
+    # WT usually handles unicode fine even on legacy Windows code pages
     if not supports_unicode and os.name == "nt" and os.environ.get("WT_SESSION"):
         supports_unicode = True
 
@@ -154,14 +156,18 @@ REI_INSPIRED_ART = r"""
 
 BANNER_LINES = ["MYSNULL IOC CONSOLE"]
 BANNER_SUBTITLE = "Threat Hunting & IOC Extraction"
+AUTHOR_CREDIT = "Author: Lucas Pereira Rodrigues — github.com/Lucaslagoonss2"
 
 # ----------------------------- IOC regex signatures -----------------------------
 
+SAFE_BASENAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 IP_PATTERN = re.compile(
     r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})\b"
 )
 DOMAIN_PATTERN = re.compile(r"\b(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}\b")
 URL_PATTERN = re.compile(r"\bhttps?://[^\s\"'<>]+")
+MD5_PATTERN = re.compile(r"\b[a-fA-F0-9]{32}\b")
+SHA256_PATTERN = re.compile(r"\b[a-fA-F0-9]{64}\b")
 OBFUSCATED_URL_PATTERN = re.compile(r"\bhxxps?://", re.IGNORECASE)
 
 
@@ -172,6 +178,7 @@ class IOCResults:
     ips: Set[str]
     domains: Set[str]
     urls: Set[str]
+    hashes: Set[str]
 
     def to_sorted_dict(self) -> Dict[str, List[str]]:
         """Convert sets to sorted lists for stable output/export."""
@@ -179,6 +186,7 @@ class IOCResults:
             "ips": sorted(self.ips),
             "domains": sorted(self.domains),
             "urls": sorted(self.urls),
+            "hashes": sorted(self.hashes),
         }
 
     def to_dict(self) -> Dict[str, List[str]]:
@@ -257,6 +265,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Filter private/reserved IPv4 values from the final IOC output.",
     )
+    parser.add_argument(
+        "--defang",
+        action="store_true",
+        help="Defang IOCs in output and exports for safe sharing.",
+    )
     return parser
 
 
@@ -299,12 +312,14 @@ def glitch_text(text: str, intensity: float = 0.08) -> str:
 
 def build_banner_panel(glitch_intensity: float) -> Panel:
     """Compose the top terminal banner panel."""
-    banner = "\n".join(glitch_text(line, glitch_intensity) for line in BANNER_LINES)
-
-    content = Group(
-        Align.center(Text(banner, style="primary")),
-        Align.center(Text(glitch_text(BANNER_SUBTITLE, glitch_intensity * 0.25), style="muted")),
-    )
+    art_lines = REI_INSPIRED_ART.strip("\n").splitlines()
+    if glitch_intensity > 0:
+        art = "\n".join(
+            glitch_text(line, glitch_intensity * 0.5) for line in art_lines
+        )
+    else:
+        art = "\n".join(art_lines)
+    content = Align.center(Text(art, style="primary"))
     return Panel(
         content,
         border_style="accent",
@@ -315,22 +330,27 @@ def build_banner_panel(glitch_intensity: float) -> Panel:
     )
 
 
+def show_author_credit() -> None:
+    """Print a quiet author line below the banner."""
+    console.print(f"[muted]{AUTHOR_CREDIT}[/muted]")
+
+
 def show_startup_banner(disable_animation: bool) -> None:
     """Display animated startup banner."""
     if disable_animation:
         console.print(build_banner_panel(0.0))
-        return
-
-    intensities = [0.30, 0.24, 0.18, 0.12, 0.08, 0.04, 0.0]
-    with Live(
-        build_banner_panel(intensities[0]),
-        console=console,
-        refresh_per_second=16,
-        transient=False,
-    ) as live:
-        for level in intensities[1:]:
-            time.sleep(0.12)
-            live.update(build_banner_panel(level))
+    else:
+        intensities = [0.30, 0.24, 0.18, 0.12, 0.08, 0.04, 0.0]
+        with Live(
+            build_banner_panel(intensities[0]),
+            console=console,
+            refresh_per_second=16,
+            transient=False,
+        ) as live:
+            for level in intensities[1:]:
+                time.sleep(0.12)
+                live.update(build_banner_panel(level))
+    show_author_credit()
 
 
 def run_boot_sequence(disable_animation: bool) -> None:
@@ -363,7 +383,7 @@ def read_input_file(path: Path) -> str:
         raise FileNotFoundError(f"Input file not found: {path}")
     if not path.is_file():
         raise IsADirectoryError(f"Input path is not a file: {path}")
-    return path.read_text(encoding="utf-8", errors="ignore")
+    return path.read_text(encoding="utf-8", errors="ignore")  # skip bad bytes in log dumps
 
 
 def normalize_url_candidate(url: str) -> str:
@@ -381,7 +401,7 @@ def deobfuscate_hxxp_schemes(text: str) -> tuple[str, int]:
         nonlocal replacements
         replacements += 1
         token = match.group(0).lower()
-        return "https://" if token.startswith("hxxps") else "http://"
+        return "https://" if token.startswith("hxxps") else "http://"  # hxxps -> https
 
     return OBFUSCATED_URL_PATTERN.sub(_replace, text), replacements
 
@@ -450,6 +470,8 @@ def extract_iocs_with_stats(
         for url in raw_urls
         if urlparse(url).hostname
     ]
+    raw_hashes_sha256 = SHA256_PATTERN.findall(normalized_text)
+    raw_hashes_md5 = MD5_PATTERN.findall(normalized_text)
 
     ips = set(raw_ips)
     if exclude_private_ips:
@@ -461,7 +483,8 @@ def extract_iocs_with_stats(
 
     urls = {url for url in raw_urls if url}
     combined_domains = [domain for domain in [*raw_domains, *raw_domain_hosts] if domain]
-    domains = {domain for domain in combined_domains if not is_ip_literal(domain)}
+    domains = {domain for domain in combined_domains if not is_ip_literal(domain)}  # drop IP-looking "domains"
+    hashes = {value.lower() for value in [*raw_hashes_sha256, *raw_hashes_md5]}
 
     stats = IOCNormalizationStats(
         obfuscated_schemes_normalized=normalized_scheme_count,
@@ -469,10 +492,35 @@ def extract_iocs_with_stats(
             dedupe_count(raw_ips)
             + dedupe_count(raw_urls)
             + dedupe_count([domain for domain in combined_domains if not is_ip_literal(domain)])
+            + dedupe_count(raw_hashes_sha256)
+            + dedupe_count(raw_hashes_md5)
         ),
         private_ips_filtered=private_ips_filtered,
     )
-    return IOCResults(ips=ips, domains=domains, urls=urls), stats
+    return IOCResults(ips=ips, domains=domains, urls=urls, hashes=hashes), stats
+
+
+def defang_iocs(results: IOCResults) -> IOCResults:
+    """Defang IOC values for safe sharing in tickets and reports."""
+
+    def defang_ip(value: str) -> str:
+        return value.replace(".", "[.]")
+
+    def defang_domain(value: str) -> str:
+        return value.replace(".", "[.]")
+
+    def defang_url(value: str) -> str:
+        if "://" in value:
+            scheme, remainder = value.split("://", 1)
+            return f"{scheme}[://]{remainder.replace('.', '[.]')}"
+        return value.replace(".", "[.]")
+
+    return IOCResults(
+        ips={defang_ip(ip) for ip in results.ips},
+        domains={defang_domain(domain) for domain in results.domains},
+        urls={defang_url(url) for url in results.urls},
+        hashes=set(results.hashes),
+    )
 
 
 def extract_iocs(text: str, exclude_private_ips: bool = False) -> IOCResults:
@@ -482,43 +530,77 @@ def extract_iocs(text: str, exclude_private_ips: bool = False) -> IOCResults:
 
 
 
-def export_json(results: IOCResults, path: Path, source_file: Path) -> None:
+def export_json(
+    results: IOCResults, path: Path, source_file: Path, defanged: bool = False
+) -> None:
     """Write IOC data to JSON."""
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_file": str(source_file),
+        "defanged": defanged,
         "counts": {
             "ips": len(results.ips),
             "domains": len(results.domains),
             "urls": len(results.urls),
+            "hashes": len(results.hashes),
         },
         "iocs": results.to_sorted_dict(),
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def export_txt(results: IOCResults, path: Path, source_file: Path) -> None:
+def export_txt(
+    results: IOCResults, path: Path, source_file: Path, defanged: bool = False
+) -> None:
     """Write IOC data to text report."""
     lines = [
         "=== BLUE TEAM IOC REPORT ===",
         f"Generated UTC: {datetime.now(timezone.utc).isoformat()}",
         f"Source File: {source_file}",
-        "",
-        f"IPs Found: {len(results.ips)}",
-        f"Domains Found: {len(results.domains)}",
-        f"URLs Found: {len(results.urls)}",
-        "",
-        "=== IP ADDRESSES ===",
-        *sorted(results.ips),
-        "",
-        "=== DOMAINS ===",
-        *sorted(results.domains),
-        "",
-        "=== URLS ===",
-        *sorted(results.urls),
-        "",
     ]
+    if defanged:
+        lines.append("Defang mode: ON (IOCs defanged for safe sharing)")
+    lines.extend(
+        [
+            "",
+            f"IPs Found: {len(results.ips)}",
+            f"Domains Found: {len(results.domains)}",
+            f"URLs Found: {len(results.urls)}",
+            f"Hashes Found: {len(results.hashes)}",
+            "",
+            "=== IP ADDRESSES ===",
+            *sorted(results.ips),
+            "",
+            "=== DOMAINS ===",
+            *sorted(results.domains),
+            "",
+            "=== URLS ===",
+            *sorted(results.urls),
+            "",
+            "=== HASHES ===",
+            *sorted(results.hashes),
+            "",
+        ]
+    )
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def sanitize_user_path(value: str, label: str) -> Path:
+    """Resolve user-supplied paths and block parent-directory traversal."""
+    if "\0" in value:
+        raise ValueError(f"Invalid {label}: null byte in path")
+    path = Path(value).expanduser()
+    if ".." in path.parts:
+        raise ValueError(f"Invalid {label}: parent traversal not allowed")
+    return path.resolve()
+
+
+def sanitize_basename(value: str) -> str:
+    """Allow only safe export stem characters."""
+    name = Path(value).name.strip()
+    if not name or not SAFE_BASENAME_PATTERN.fullmatch(name):
+        raise ValueError(f"Invalid export basename: {value!r}")
+    return name
 
 
 def export_results(
@@ -527,18 +609,20 @@ def export_results(
     output_dir: Path,
     basename: str,
     source_file: Path,
+    defanged: bool = False,
 ) -> List[Path]:
     """Export IOC results in requested format(s)."""
+    safe_basename = sanitize_basename(basename)  # security: input sanitized
     output_dir.mkdir(parents=True, exist_ok=True)
     written_files: List[Path] = []
 
-    # dict.fromkeys preserves order while removing duplicates.
+    # keep first occurrence of each format flag
     for fmt in dict.fromkeys(formats):
-        output_path = output_dir / f"{basename}.{fmt}"
+        output_path = output_dir / f"{safe_basename}.{fmt}"
         if fmt == "json":
-            export_json(results, output_path, source_file)
+            export_json(results, output_path, source_file, defanged=defanged)
         elif fmt == "txt":
-            export_txt(results, output_path, source_file)
+            export_txt(results, output_path, source_file, defanged=defanged)
         else:
             raise ValueError(f"Unsupported export format: {fmt}")
         written_files.append(output_path)
@@ -560,6 +644,11 @@ def show_plain_startup_banner() -> None:
     sys.stdout.write(f"\n{BANNER_LINES[0]}\n{BANNER_SUBTITLE}\n\n")
 
 
+def show_plain_author_credit() -> None:
+    """Show author credit in plain terminal mode."""
+    sys.stdout.write(f"{AUTHOR_CREDIT}\n\n")
+
+
 def render_plain_error(title: str, message: str) -> None:
     """Render plain-text error output."""
     sys.stderr.write(f"{title}: {message}\n")
@@ -571,6 +660,7 @@ def render_plain_results(results: IOCResults) -> None:
     print(f"IPs ({len(results.ips)}): {sorted(results.ips)}")
     print(f"Domains ({len(results.domains)}): {sorted(results.domains)}")
     print(f"URLs ({len(results.urls)}): {sorted(results.urls)}")
+    print(f"Hashes ({len(results.hashes)}): {sorted(results.hashes)}")
 
 
 def render_plain_normalization_notes(notes: Sequence[str]) -> None:
@@ -599,17 +689,23 @@ def run_extractor(args: argparse.Namespace) -> int:
             f"Using plain terminal mode (encoding={TERMINAL_PROFILE.get('encoding')}).\n"
         )
 
-    log_file = Path(args.log_file).expanduser()
+    try:
+        log_file = sanitize_user_path(args.log_file, "log file")  # security: input sanitized
+        output_dir = sanitize_user_path(args.output_dir, "output directory")  # security: input sanitized
+    except ValueError as exc:
+        sys.stderr.write(f"Configuration error: {exc}\n")
+        return 1
+
     logger = setup_logging(log_file=log_file, verbose=args.verbose)
     logger.info("IOC extractor started")
 
     input_path = Path(args.input).expanduser()
-    output_dir = Path(args.output_dir).expanduser()
     if rich_ui:
         show_startup_banner(args.no_animation)
         run_boot_sequence(args.no_animation)
     else:
         show_plain_startup_banner()
+        show_plain_author_credit()
 
     try:
         if rich_ui:
@@ -668,13 +764,18 @@ def run_extractor(args: argparse.Namespace) -> int:
                 "Unexpected extraction failure. Review log file for details.",
             )
         return 1
+    if args.defang:
+        results = defang_iocs(results)
     normalization_notes = build_normalization_notes(normalization_stats)
+    if args.defang:
+        normalization_notes = [*normalization_notes, "Defang mode active — IOCs shown defanged."]
 
     logger.info(
-        "Extraction complete | ips=%d domains=%d urls=%d",
+        "Extraction complete | ips=%d domains=%d urls=%d hashes=%d",
         len(results.ips),
         len(results.domains),
         len(results.urls),
+        len(results.hashes),
     )
     if normalization_notes:
         logger.info("Normalization | %s", " | ".join(normalization_notes))
@@ -714,6 +815,7 @@ def run_extractor(args: argparse.Namespace) -> int:
             output_dir=output_dir,
             basename=args.basename,
             source_file=input_path,
+            defanged=args.defang,
         )
     except OSError:
         logger.exception("Failed to write export files")

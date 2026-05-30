@@ -24,6 +24,7 @@ def render_results(console: Any, box: Any, Table: Any, Panel: Any, results: Any)
     summary.add_row("IP addresses", str(len(results.ips)))
     summary.add_row("Domains", str(len(results.domains)))
     summary.add_row("URLs", str(len(results.urls)))
+    summary.add_row("Hashes", str(len(results.hashes)))
 
     console.print(
         Panel(
@@ -38,6 +39,7 @@ def render_results(console: Any, box: Any, Table: Any, Panel: Any, results: Any)
         ("IP Addresses", results.ips, "ioc.ip"),
         ("Domains", results.domains, "ioc.domain"),
         ("URLs", results.urls, "ioc.url"),
+        ("Hashes", results.hashes, "ioc.url"),
     ):
         table = Table(box=box.SIMPLE, show_header=True, header_style="primary")
         table.add_column(title, style=style)
