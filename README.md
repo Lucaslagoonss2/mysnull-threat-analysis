@@ -1,4 +1,6 @@
-![banner](screenshots/banner.gif)
+<p align="center">
+  <img src="screenshots/banner.gif" width="900"/>
+</p>
 
 # MysNull Threat Analysis
 
